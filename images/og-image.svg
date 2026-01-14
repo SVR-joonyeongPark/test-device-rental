@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 배경 -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- 장식 원 -->
+  <circle cx="1000" cy="100" r="200" fill="#1e293b" opacity="0.5"/>
+  <circle cx="200" cy="530" r="150" fill="#1e293b" opacity="0.5"/>
+
+  <!-- 스마트폰 아이콘 (왼쪽) -->
+  <g transform="translate(120, 165)">
+    <rect width="140" height="230" rx="20" fill="white"/>
+    <rect x="12" y="32" width="116" height="166" rx="6" fill="#f1f5f9"/>
+    <circle cx="70" cy="115" r="35" fill="#10b981"/>
+    <path d="M52 115 L65 128 L88 102" stroke="white" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="50" y="210" width="40" height="5" rx="2.5" fill="#cbd5e1"/>
+  </g>
+
+  <!-- 텍스트 (오른쪽) -->
+  <text x="340" y="260" font-family="system-ui, -apple-system, sans-serif" font-size="56" font-weight="700" fill="white" letter-spacing="-0.02em">
+    테스트 단말 대여 시스템
+  </text>
+
+  <text x="340" y="320" font-family="system-ui, -apple-system, sans-serif" font-size="24" fill="#94a3b8">
+    실시간 현황 확인 · 간편 신청 · 연장 관리
+  </text>
+
+  <!-- 기능 태그들 -->
+  <g transform="translate(340, 380)">
+    <rect width="120" height="44" rx="22" fill="rgba(255,255,255,0.1)"/>
+    <text x="60" y="28" font-family="system-ui, sans-serif" font-size="14" fill="white" text-anchor="middle" font-weight="500">실시간 동기화</text>
+  </g>
+  <g transform="translate(480, 380)">
+    <rect width="100" height="44" rx="22" fill="rgba(255,255,255,0.1)"/>
+    <text x="50" y="28" font-family="system-ui, sans-serif" font-size="14" fill="white" text-anchor="middle" font-weight="500">분기별 관리</text>
+  </g>
+  <g transform="translate(600, 380)">
+    <rect width="100" height="44" rx="22" fill="rgba(255,255,255,0.1)"/>
+    <text x="50" y="28" font-family="system-ui, sans-serif" font-size="14" fill="white" text-anchor="middle" font-weight="500">엑셀 다운로드</text>
+  </g>
+</svg>

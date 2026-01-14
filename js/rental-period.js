@@ -312,11 +312,11 @@ export function getPeriodNoticeText(status, period) {
 
     switch (status) {
         case 'before_apply':
-            return { icon: '', text: `${period.quarter} 신청: ${applyStart}부터` };
+            return { icon: '', text: `${period.quarter} 신청: ${applyStart} ~ ${applyEnd}` };
         case 'apply_open':
-            return { icon: '', text: `${period.quarter} 신청 중 (${applyEnd}까지)` };
+            return { icon: '', text: `${period.quarter} 신청: ${applyStart} ~ ${applyEnd}` };
         case 'apply_closed':
-            return { icon: '', text: `${period.quarter} 신청 마감` };
+            return { icon: '', text: `${period.quarter} 신청 마감 (${applyEnd})` };
         default:
             return { icon: '', text: '기간 정보 없음' };
     }
@@ -346,7 +346,7 @@ export function getBannerInfo(status, period) {
                 type: 'apply-open',
                 icon: '',
                 title: `${period.quarter} 신청 진행 중!${autoNote}`,
-                message: `신청 마감: ${applyEnd} | 대여 기간: ${rentalStart} ~ ${rentalEnd}`,
+                message: `신청 기간: ${applyStart} ~ ${applyEnd} | 대여 기간: ${rentalStart} ~ ${rentalEnd}`,
                 showExtendButton: true
             };
         case 'apply_closed':
@@ -354,7 +354,7 @@ export function getBannerInfo(status, period) {
                 type: 'apply-closed',
                 icon: '',
                 title: `${period.quarter} 신청 기간이 마감되었습니다`,
-                message: '긴급 신청이 필요한 경우 QA팀에 문의하세요',
+                message: `신청 기간: ${applyStart} ~ ${applyEnd} (마감됨)`,
                 showExtendButton: false
             };
         default:

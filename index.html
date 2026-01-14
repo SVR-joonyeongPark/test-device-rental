@@ -4,6 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DearU 테스트 단말 대여 시스템</title>
+
+    <!-- Meta Description -->
+    <meta name="description" content="DearU 테스트 단말 대여 시스템 - 실시간 단말 현황 확인 및 간편 대여 신청">
+    <meta name="keywords" content="단말 대여, 테스트 디바이스, DearU, QA, 디바이스 관리">
+    <meta name="author" content="DearU QA Team">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="DearU 테스트 단말 대여 시스템">
+    <meta property="og:description" content="실시간 단말 현황 확인 및 간편 대여 신청 시스템">
+    <meta property="og:image" content="images/og-image.svg">
+    <meta property="og:locale" content="ko_KR">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="DearU 테스트 단말 대여 시스템">
+    <meta name="twitter:description" content="실시간 단말 현황 확인 및 간편 대여 신청 시스템">
+    <meta name="twitter:image" content="images/og-image.svg">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="images/favicon.svg">
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.svg">
+
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="msapplication-TileColor" content="#0f172a">
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -30,7 +62,6 @@
             </div>
             <div class="header-actions">
                 <div id="periodNotice" class="period-notice">
-                    <span class="period-icon"></span>
                     <span class="period-text">로딩중...</span>
                 </div>
                 <div class="connection-status">
@@ -47,7 +78,6 @@
     <!-- 신청 기간 상태 배너 -->
     <section id="statusBanner" class="status-banner" style="display: none;">
         <div class="banner-content">
-            <div class="banner-icon"></div>
             <div class="banner-text">
                 <h3 class="banner-title"></h3>
                 <p class="banner-message"></p>
@@ -60,42 +90,43 @@
         <!-- 필터 영역 -->
         <section class="filter-section">
             <div class="filter-row">
-                <div class="filter-group">
-                    <label for="search">모델명 검색</label>
+                <div class="filter-group search-group">
                     <input type="text" id="search" placeholder="모델명 또는 관리번호 검색...">
                 </div>
-                <div class="filter-group">
-                    <label for="deviceType">단말 타입</label>
-                    <select id="deviceType">
-                        <option value="all">전체</option>
-                        <option value="phone">휴대폰</option>
-                        <option value="tablet">태블릿</option>
-                        <option value="buds">이어폰</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="osType">OS 종류</label>
-                    <select id="osType">
-                        <option value="all">전체</option>
-                        <option value="iOS">iOS</option>
-                        <option value="Android">Android</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="status">상태</label>
-                    <select id="status">
-                        <option value="all">전체</option>
-                        <option value="available">대여 가능</option>
-                        <option value="pending">신청중</option>
-                        <option value="rented">대여중</option>
-                        <option value="unavailable">사용 불가</option>
-                    </select>
+                <div class="os-filter-tags" id="osFilterTags">
+                    <button type="button" class="os-tag active" data-os="all">전체</button>
+                    <button type="button" class="os-tag" data-os="iOS">iOS</button>
+                    <button type="button" class="os-tag" data-os="Android">Android</button>
                 </div>
             </div>
             <div class="filter-stats">
-                <span id="deviceCount">총 0개 단말</span>
-                <button type="button" class="btn-reset" id="resetFilters">필터 초기화</button>
-                <button type="button" class="btn-manual-entry" id="manualEntryBtn">직접 입력으로 신청</button>
+                <div class="status-filter-tags" id="statusFilterTags">
+                    <button type="button" class="status-tag" data-status="all">
+                        전체 <span class="tag-count" id="statTotal">0</span>
+                    </button>
+                    <button type="button" class="status-tag available active" data-status="available">
+                        대여 가능 <span class="tag-count" id="statAvailable">0</span>
+                    </button>
+                    <button type="button" class="status-tag rented" data-status="rented">
+                        대여중 <span class="tag-count" id="statRented">0</span>
+                    </button>
+                    <button type="button" class="status-tag overdue" data-status="overdue">
+                        회수 대상 <span class="tag-count" id="statOverdue">0</span>
+                    </button>
+                    <button type="button" class="status-tag unavailable" data-status="unavailable">
+                        사용 불가 <span class="tag-count" id="statUnavailable">0</span>
+                    </button>
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button type="button" class="btn-reset" id="resetFilters">필터 초기화</button>
+                    <button type="button" class="btn-manual-entry" id="manualEntryBtn">직접 입력으로 신청</button>
+                </div>
+            </div>
+            <div class="stats-bar" id="statsBar">
+                <div class="stats-bar-segment available" id="statsBarAvailable" style="width: 0%"></div>
+                <div class="stats-bar-segment rented" id="statsBarRented" style="width: 0%"></div>
+                <div class="stats-bar-segment overdue" id="statsBarOverdue" style="width: 0%"></div>
+                <div class="stats-bar-segment unavailable" id="statsBarUnavailable" style="width: 0%"></div>
             </div>
         </section>
 
@@ -289,6 +320,36 @@
                     <p>현재 대여 중인 단말이 없습니다.</p>
                     <p class="sub">신규 대여를 원하시면 대여 가능한 단말에서 신청해주세요.</p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 반납/회수 모달 -->
+    <div class="modal-overlay" id="returnModal">
+        <div class="modal modal-return">
+            <button type="button" class="modal-close-float" id="returnModalClose">&times;</button>
+            <div class="return-modal-content">
+                <div class="return-device-card">
+                    <div class="return-device-icon">📱</div>
+                    <div class="return-device-info">
+                        <div class="return-device-name" id="returnDeviceName"></div>
+                        <div class="return-device-detail" id="returnDeviceDetail"></div>
+                    </div>
+                </div>
+                <form id="returnForm" class="return-form">
+                    <div class="return-password-section">
+                        <div class="return-password-label">관리자 인증</div>
+                        <div class="return-password-input-wrap">
+                            <input type="password" id="returnPassword" required placeholder="비밀번호">
+                            <span class="return-password-icon">🔒</span>
+                        </div>
+                        <span class="return-error" id="returnPasswordError"></span>
+                    </div>
+                    <div class="return-actions">
+                        <button type="button" class="btn-return-cancel" id="returnCancelBtn">취소</button>
+                        <button type="submit" class="btn-return-submit" id="returnSubmitBtn">반납 확인</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

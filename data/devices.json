@@ -110,8 +110,6 @@
     {"id": "ES-T002", "type": "tablet", "model": "넥서스 7", "os": "Android", "osVersion": "4.4.2", "note": "미지원"},
     {"id": "ES-T003", "type": "tablet", "model": "갤럭시 탭S3 Wifi", "os": "Android", "osVersion": "7", "note": ""},
     {"id": "ES-T004", "type": "tablet", "model": "아이패드 WI-FI", "os": "iOS", "osVersion": "16.7", "note": ""},
-    {"id": "ES-T005", "type": "tablet", "model": "아이패드프로 WI-FI", "os": "iOS", "osVersion": "16.3.1", "note": ""},
-    {"id": "ES-B001", "type": "buds", "model": "AirPods Pro", "os": "iOS", "osVersion": "-", "note": ""},
-    {"id": "ES-B002", "type": "buds", "model": "Galaxy Buds Live", "os": "Android", "osVersion": "-", "note": ""}
+    {"id": "ES-T005", "type": "tablet", "model": "아이패드프로 WI-FI", "os": "iOS", "osVersion": "16.3.1", "note": ""}
   ]
 }

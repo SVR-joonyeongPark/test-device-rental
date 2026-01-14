@@ -6,6 +6,7 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/12.7.0/firebase
 const firebaseConfig = {
     apiKey: "AIzaSyA3JNwfunGu1x33fLiv5n9Z4y8DxNdVZLU",
     authDomain: "dearu-test-device-rental.firebaseapp.com",
+    databaseURL: "https://dearu-test-device-rental-default-rtdb.asia-southeast1.firebasedatabase.app",
     projectId: "dearu-test-device-rental",
     storageBucket: "dearu-test-device-rental.firebasestorage.app",
     messagingSenderId: "275456727890",
