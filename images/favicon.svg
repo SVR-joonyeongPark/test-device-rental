@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 배경 -->
+  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
+
+  <!-- 스마트폰 -->
+  <rect x="156" y="96" width="200" height="320" rx="24" fill="white"/>
+  <rect x="172" y="136" width="168" height="240" rx="8" fill="#f1f5f9"/>
+
+  <!-- 화면 내 체크 아이콘 -->
+  <circle cx="256" cy="256" r="50" fill="#10b981"/>
+  <path d="M230 256 L250 276 L282 236" stroke="white" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- 홈 인디케이터 -->
+  <rect x="216" y="392" width="80" height="6" rx="3" fill="#cbd5e1"/>
+</svg>

@@ -61,7 +61,7 @@ DearU 사내 테스트 단말의 분기별 대여 신청을 편리하게 관리�
 | 필드 | 설명 |
 |------|------|
 | id | 관리번호 |
-| type | 단말 타입 (phone, tablet, buds) |
+| type | 단말 타입 (phone, tablet) |
 | model | 모델명 |
 | os | 운영체제 (iOS, Android) |
 | osVersion | OS 버전 |
@@ -96,7 +96,6 @@ JSON에는 status 필드가 없으며, 시스템에서 자동으로 계산합니
 ### 단말 타입
 - `phone`: 휴대폰
 - `tablet`: 태블릿
-- `buds`: 이어폰
 
 ### 분기별 신청 기간 (Firestore rentalPeriods 컬렉션)
 ```json
@@ -225,4 +224,4 @@ test-device-rental/
 
 ## 문의
 
-시스템 관련 문의는 QA팀으로 연락해주세요.
+시스템 관련 문의는 SVR-joonyeongPark 연락해주세요.

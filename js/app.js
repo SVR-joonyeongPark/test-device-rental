@@ -39,7 +39,7 @@ let currentFilters = {
     search: '',
     type: 'all',
     os: 'all',
-    status: 'all'
+    status: 'available'  // 기본값: 대여 가능
 };
 let currentPeriod = null;
 let periodStatus = 'no_period';
@@ -53,11 +53,9 @@ const elements = {
     deviceGrid: document.getElementById('deviceGrid'),
     loadingSpinner: document.getElementById('loadingSpinner'),
     emptyState: document.getElementById('emptyState'),
-    deviceCount: document.getElementById('deviceCount'),
     searchInput: document.getElementById('search'),
-    deviceTypeFilter: document.getElementById('deviceType'),
-    osTypeFilter: document.getElementById('osType'),
-    statusFilter: document.getElementById('status'),
+    osFilterTags: document.getElementById('osFilterTags'),
+    statusFilterTags: document.getElementById('statusFilterTags'),
     resetFiltersBtn: document.getElementById('resetFilters'),
     downloadBtn: document.getElementById('downloadBtn'),
     rentalModal: document.getElementById('rentalModal'),
@@ -68,10 +66,16 @@ const elements = {
     toast: document.getElementById('toast'),
     // 기간 관련
     periodNotice: document.getElementById('periodNotice'),
-    periodIcon: document.querySelector('.period-icon'),
     periodText: document.querySelector('.period-text'),
     statusBanner: document.getElementById('statusBanner'),
-    extendModal: document.getElementById('extendModal')
+    extendModal: document.getElementById('extendModal'),
+    // 반납/회수 관련
+    returnModal: document.getElementById('returnModal'),
+    returnForm: document.getElementById('returnForm'),
+    returnPassword: document.getElementById('returnPassword'),
+    returnPasswordError: document.getElementById('returnPasswordError'),
+    returnDeviceName: document.getElementById('returnDeviceName'),
+    returnDeviceDetail: document.getElementById('returnDeviceDetail')
 };
 
 // ============================================
@@ -124,9 +128,6 @@ async function loadPeriodInfo() {
 
 function updatePeriodNotice() {
     const notice = getPeriodNoticeText(periodStatus, currentPeriod);
-    if (elements.periodIcon) {
-        elements.periodIcon.textContent = notice.icon;
-    }
     if (elements.periodText) {
         elements.periodText.textContent = notice.text;
     }
@@ -143,12 +144,9 @@ function updateStatusBanner() {
     elements.statusBanner.style.display = 'block';
     elements.statusBanner.className = `status-banner ${bannerInfo.type}`;
 
-    const iconEl = elements.statusBanner.querySelector('.banner-icon');
     const titleEl = elements.statusBanner.querySelector('.banner-title');
     const messageEl = elements.statusBanner.querySelector('.banner-message');
     const actionsEl = elements.statusBanner.querySelector('.banner-actions');
-
-    if (iconEl) iconEl.textContent = bannerInfo.icon;
     if (titleEl) titleEl.textContent = bannerInfo.title;
     if (messageEl) messageEl.textContent = bannerInfo.message;
 
@@ -225,15 +223,22 @@ function applyRentalStatusToDevices() {
         const device = allDevices.find(d => d.id === rental.deviceId);
         if (!device) return;
 
-        // 반납 예정일이 지났으면 만료 처리 (상태 반영 안 함)
-        const endDate = new Date(rental.endDate);
-        endDate.setHours(23, 59, 59, 999);
-        if (endDate < today) {
-            return; // 만료된 대여는 무시 → 단말은 available 상태 유지
+        // pending, approved 상태인 대여만 처리
+        if (rental.status !== 'pending' && rental.status !== 'approved') {
+            return;
         }
 
-        // 유효한 대여만 상태 반영 (pending, approved 모두 대여중으로 처리)
-        if (rental.status === 'pending' || rental.status === 'approved') {
+        const endDate = new Date(rental.endDate);
+        endDate.setHours(23, 59, 59, 999);
+
+        // 반납 예정일이 지났으면 회수 대상으로 표시
+        if (endDate < today) {
+            device.status = 'overdue';
+            device.rentedBy = rental.renterName;
+            device.rentalType = rental.rentalType;
+            device.endDate = rental.endDate;  // 반납 예정일 저장 (며칠 지났는지 표시용)
+        } else {
+            // 유효한 대여 → 대여중 상태
             device.status = 'rented';
             device.rentedBy = rental.renterName;
             device.rentalType = rental.rentalType;
@@ -332,10 +337,19 @@ function setupRealtimeSync() {
 function renderDevices() {
     const filteredDevices = filterDevices(allDevices);
 
-    // 상태 순서: available > pending > rented > unavailable
+    // 상태 순서: 회수 대상 → 대여 가능 → 신청중 → 대여중 → 사용 불가
+    const statusOrder = {
+        'overdue': 0,
+        'available': 1,
+        'pending': 2,
+        'rented': 3,
+        'unavailable': 4
+    };
+
     const sortedDevices = [...filteredDevices].sort((a, b) => {
-        const order = { available: 0, pending: 1, rented: 2, unavailable: 3 };
-        return (order[a.status] || 4) - (order[b.status] || 4);
+        const orderA = statusOrder[a.status] !== undefined ? statusOrder[a.status] : 99;
+        const orderB = statusOrder[b.status] !== undefined ? statusOrder[b.status] : 99;
+        return orderA - orderB;
     });
 
     if (sortedDevices.length === 0) {
@@ -349,17 +363,37 @@ function renderDevices() {
         bindCardEvents();
     }
 
-    updateDeviceCount(filteredDevices.length);
+    updateDeviceStats();
 }
 
 function createDeviceCard(device) {
     const typeIcon = getTypeIcon(device.type);
+    const typeName = getTypeName(device.type);
     const statusInfo = getStatusInfo(device);
     const isAvailable = device.status === 'available';
+    const isRented = device.status === 'rented' || device.status === 'pending';
+    const isOverdue = device.status === 'overdue';
 
     let renterInfo = '';
+    let rentalPeriodInfo = '';
+    let overdueInfo = '';
+
     if (device.rentedBy) {
         renterInfo = `<p class="device-renter">대여자: ${device.rentedBy}</p>`;
+
+        // 대여 기간 정보 찾기
+        const rental = allRentals.find(r => r.deviceId === device.id);
+        if (rental && rental.startDate && rental.endDate) {
+            const startDate = formatDateShort(rental.startDate);
+            const endDate = formatDateShort(rental.endDate);
+            rentalPeriodInfo = `<p class="device-rental-period">${startDate} ~ ${endDate}</p>`;
+        }
+
+        // 회수 대상인 경우 며칠 지연됐는지 표시
+        if (isOverdue && device.endDate) {
+            const daysOverdue = calculateDaysOverdue(device.endDate);
+            overdueInfo = `<p class="device-overdue-info">${daysOverdue}일 지연</p>`;
+        }
     }
 
     let noteInfo = '';
@@ -367,11 +401,35 @@ function createDeviceCard(device) {
         noteInfo = `<p class="device-note">${device.note}</p>`;
     }
 
+    // 버튼 결정: 대여중/회수대상이면 반납 버튼, 대여 가능이면 신청 버튼
+    let footerButton = '';
+    if (isRented || isOverdue) {
+        const buttonClass = isOverdue ? 'btn-return btn-overdue' : 'btn-return';
+        const buttonText = isOverdue ? '회수 처리' : '반납 처리';
+        footerButton = `
+            <button class="${buttonClass}" data-device-id="${device.id}">
+                ${buttonText}
+            </button>
+        `;
+    } else if (isAvailable) {
+        footerButton = `
+            <button class="btn-apply" data-device-id="${device.id}">
+                신청서 작성
+            </button>
+        `;
+    } else {
+        footerButton = `
+            <button class="btn-apply" data-device-id="${device.id}" disabled>
+                신청 불가
+            </button>
+        `;
+    }
+
     return `
         <article class="device-card status-${device.status}" data-device-id="${device.id}">
             <div class="card-header">
                 <span class="device-id">${device.id}</span>
-                <span class="device-type-icon">${typeIcon}</span>
+                <span class="device-type-badge type-${device.type}">${typeName}</span>
             </div>
             <div class="card-body">
                 <h3 class="device-model">${device.model}</h3>
@@ -380,16 +438,32 @@ function createDeviceCard(device) {
                     ${statusInfo.text}
                 </div>
                 ${renterInfo}
+                ${rentalPeriodInfo}
+                ${overdueInfo}
                 ${noteInfo}
             </div>
             <div class="card-footer">
-                <button class="btn-apply" data-device-id="${device.id}"
-                        ${!isAvailable ? 'disabled' : ''}>
-                    ${isAvailable ? '신청서 작성' : '신청 불가'}
-                </button>
+                ${footerButton}
             </div>
         </article>
     `;
+}
+
+function formatDateShort(dateStr) {
+    const date = new Date(dateStr);
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${month}/${day}`;
+}
+
+function calculateDaysOverdue(endDateStr) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endDate = new Date(endDateStr);
+    endDate.setHours(0, 0, 0, 0);
+    const diffTime = today - endDate;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
 }
 
 function bindCardEvents() {
@@ -408,6 +482,21 @@ function bindCardEvents() {
             if (!e.target.classList.contains('btn-apply')) {
                 const deviceId = card.dataset.deviceId;
                 openRentalModal(deviceId);
+            }
+        });
+    });
+
+    // 반납/회수 버튼 클릭
+    document.querySelectorAll('.btn-return').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const deviceId = btn.dataset.deviceId;
+            const device = allDevices.find(d => d.id === deviceId);
+            const rental = allRentals.find(r => r.deviceId === deviceId &&
+                (r.status === 'pending' || r.status === 'approved'));
+
+            if (device && rental) {
+                openReturnModal(rental, device);
             }
         });
     });
@@ -446,11 +535,19 @@ function filterDevices(devices) {
 }
 
 function resetFilters() {
-    currentFilters = { search: '', type: 'all', os: 'all', status: 'all' };
+    currentFilters = { search: '', type: 'all', os: 'all', status: 'available' };
     elements.searchInput.value = '';
-    elements.deviceTypeFilter.value = 'all';
-    elements.osTypeFilter.value = 'all';
-    elements.statusFilter.value = 'all';
+
+    // OS 태그 초기화
+    elements.osFilterTags.querySelectorAll('.os-tag').forEach(tag => {
+        tag.classList.toggle('active', tag.dataset.os === 'all');
+    });
+
+    // 상태 태그 초기화 (대여 가능이 기본)
+    elements.statusFilterTags.querySelectorAll('.status-tag').forEach(tag => {
+        tag.classList.toggle('active', tag.dataset.status === 'available');
+    });
+
     renderDevices();
 }
 
@@ -609,7 +706,15 @@ function closeRentalModal() {
 async function handleFormSubmit(e) {
     e.preventDefault();
 
+    // 연속 클릭 방지
+    if (isSubmitLocked('rental')) {
+        console.log('Rental submit is locked - preventing duplicate submission');
+        return;
+    }
+
     if (!validateForm()) return;
+
+    setSubmitLock('rental', 3000);  // 3초간 중복 제출 방지
 
     const submitBtn = document.getElementById('submitBtn');
     submitBtn.classList.add('loading');
@@ -674,7 +779,8 @@ async function handleFormSubmit(e) {
             }
 
             // Firestore에 신청 정보 저장
-            await addDoc(collection(db, 'rentals'), formData);
+            const docRef = await addDoc(collection(db, 'rentals'), formData);
+            formData.id = docRef.id;  // 문서 ID 저장
 
             // 로컬 상태 업데이트 (화면 표시용)
             if (existingDevice) {
@@ -712,7 +818,8 @@ async function handleFormSubmit(e) {
             }
 
             // Firestore에 신청 정보 저장
-            await addDoc(collection(db, 'rentals'), formData);
+            const docRef = await addDoc(collection(db, 'rentals'), formData);
+            formData.id = docRef.id;  // 문서 ID 저장
 
             // 로컬 상태 업데이트 (화면 표시용)
             device.status = 'rented';
@@ -1086,6 +1193,131 @@ function closeExtendModal() {
     selectedExtendRentals = [];
 }
 
+// ============================================
+// 반납/회수 모달
+// ============================================
+let currentReturnRental = null;
+
+function openReturnModal(rental, device) {
+    currentReturnRental = rental;
+
+    // 단말 정보 표시
+    elements.returnDeviceName.textContent = `${device.id} - ${device.model}`;
+    elements.returnDeviceDetail.textContent = `대여자: ${rental.renterName} | ${device.os} ${device.osVersion}`;
+
+    // 폼 초기화
+    elements.returnPassword.value = '';
+    elements.returnPasswordError.textContent = '';
+
+    elements.returnModal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    setTimeout(() => {
+        elements.returnPassword.focus();
+    }, 100);
+}
+
+function closeReturnModal() {
+    elements.returnModal.classList.remove('active');
+    document.body.style.overflow = '';
+    currentReturnRental = null;
+}
+
+async function verifyAdminPassword(inputPassword) {
+    try {
+        // Realtime Database 동적 import (필요할 때만 연결)
+        const { getDatabase, ref, get } = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js');
+        const { app } = await import('./firebase-config.js');
+
+        const rtdb = getDatabase(app);
+        const snapshot = await get(ref(rtdb, 'admin/passwordHash'));
+
+        if (!snapshot.exists()) {
+            console.error('Password hash not found in Realtime Database');
+            return false;
+        }
+
+        const storedHash = snapshot.val();
+
+        // 입력된 비밀번호를 SHA-256으로 해시
+        const encoder = new TextEncoder();
+        const data = encoder.encode(inputPassword);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const inputHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        return inputHash === storedHash;
+    } catch (error) {
+        console.error('Password verification failed:', error);
+        return false;
+    }
+}
+
+async function handleReturnSubmit(e) {
+    e.preventDefault();
+
+    // 연속 클릭 방지
+    if (isSubmitLocked('return')) {
+        console.log('Return submit is locked - preventing duplicate submission');
+        return;
+    }
+
+    if (!currentReturnRental) return;
+
+    const password = elements.returnPassword.value;
+    const submitBtn = document.getElementById('returnSubmitBtn');
+
+    if (!password) {
+        elements.returnPasswordError.textContent = '비밀번호를 입력하세요';
+        return;
+    }
+
+    setSubmitLock('return', 3000);  // 3초간 중복 제출 방지
+
+    submitBtn.classList.add('loading');
+    submitBtn.disabled = true;
+    elements.returnPasswordError.textContent = '';
+
+    try {
+        // 비밀번호 검증
+        const isValid = await verifyAdminPassword(password);
+
+        if (!isValid) {
+            elements.returnPasswordError.textContent = '비밀번호가 일치하지 않습니다';
+            return;
+        }
+
+        // Firestore에서 대여 기록 삭제
+        const { deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js');
+        const deletedRentalId = currentReturnRental.id;
+        const deletedDeviceId = currentReturnRental.deviceId;
+
+        await deleteDoc(doc(window.db, 'rentals', deletedRentalId));
+
+        // 로컬 상태 즉시 업데이트
+        allRentals = allRentals.filter(r => r.id !== deletedRentalId);
+
+        // 해당 단말 상태 업데이트
+        const device = allDevices.find(d => d.id === deletedDeviceId);
+        if (device) {
+            device.status = device.note ? 'unavailable' : 'available';
+            device.rentedBy = null;
+            device.rentalType = null;
+        }
+
+        closeReturnModal();
+        renderDevices();
+        showToast('반납 처리가 완료되었습니다', 'success');
+
+    } catch (error) {
+        console.error('Return processing failed:', error);
+        showToast('반납 처리 중 오류가 발생했습니다', 'error');
+    } finally {
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+    }
+}
+
 async function searchUserRentals() {
     const renterName = document.getElementById('extendRenterName').value.trim();
 
@@ -1157,10 +1389,18 @@ function updateExtendCount() {
 }
 
 async function handleExtendSubmit() {
+    // 연속 클릭 방지
+    if (isSubmitLocked('extend')) {
+        console.log('Extend submit is locked - preventing duplicate submission');
+        return;
+    }
+
     if (selectedExtendRentals.length === 0) {
         showToast('연장할 단말을 선택해주세요', 'warning');
         return;
     }
+
+    setSubmitLock('extend', 3000);  // 3초간 중복 제출 방지
 
     const submitBtn = document.getElementById('extendSubmitBtn');
     submitBtn.classList.add('loading');
@@ -1196,24 +1436,35 @@ async function handleExtendSubmit() {
 // 이벤트 리스너
 // ============================================
 function setupEventListeners() {
-    // 필터 이벤트
+    // 검색 필터 이벤트
     elements.searchInput.addEventListener('input', (e) => {
         currentFilters.search = e.target.value;
         renderDevices();
     });
 
-    elements.deviceTypeFilter.addEventListener('change', (e) => {
-        currentFilters.type = e.target.value;
+    // OS 필터 태그 클릭 이벤트
+    elements.osFilterTags.addEventListener('click', (e) => {
+        const tag = e.target.closest('.os-tag');
+        if (!tag) return;
+
+        // 활성 상태 업데이트
+        elements.osFilterTags.querySelectorAll('.os-tag').forEach(t => t.classList.remove('active'));
+        tag.classList.add('active');
+
+        currentFilters.os = tag.dataset.os;
         renderDevices();
     });
 
-    elements.osTypeFilter.addEventListener('change', (e) => {
-        currentFilters.os = e.target.value;
-        renderDevices();
-    });
+    // 상태 필터 태그 클릭 이벤트
+    elements.statusFilterTags.addEventListener('click', (e) => {
+        const tag = e.target.closest('.status-tag');
+        if (!tag) return;
 
-    elements.statusFilter.addEventListener('change', (e) => {
-        currentFilters.status = e.target.value;
+        // 활성 상태 업데이트
+        elements.statusFilterTags.querySelectorAll('.status-tag').forEach(t => t.classList.remove('active'));
+        tag.classList.add('active');
+
+        currentFilters.status = tag.dataset.status;
         renderDevices();
     });
 
@@ -1268,6 +1519,15 @@ function setupEventListeners() {
         if (e.target === elements.extendModal) closeExtendModal();
     });
 
+    // 반납/회수 모달
+    document.getElementById('returnModalClose').addEventListener('click', closeReturnModal);
+    document.getElementById('returnCancelBtn').addEventListener('click', closeReturnModal);
+    elements.returnForm.addEventListener('submit', handleReturnSubmit);
+
+    elements.returnModal.addEventListener('click', (e) => {
+        if (e.target === elements.returnModal) closeReturnModal();
+    });
+
     // ESC 키로 모달 닫기
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -1280,6 +1540,9 @@ function setupEventListeners() {
             if (elements.extendModal.classList.contains('active')) {
                 closeExtendModal();
             }
+            if (elements.returnModal.classList.contains('active')) {
+                closeReturnModal();
+            }
         }
     });
 }
@@ -1287,9 +1550,45 @@ function setupEventListeners() {
 // ============================================
 // 유틸리티 함수
 // ============================================
+
+/**
+ * 연속 클릭 방지를 위한 debounce 상태 관리
+ */
+const submitLocks = {
+    rental: false,
+    extend: false,
+    return: false
+};
+
+/**
+ * 버튼 잠금 설정 (지정된 시간 후 자동 해제)
+ * @param {string} key - 잠금 키 (rental, extend, return)
+ * @param {number} duration - 잠금 시간 (ms), 기본 2000ms
+ */
+function setSubmitLock(key, duration = 2000) {
+    submitLocks[key] = true;
+    setTimeout(() => {
+        submitLocks[key] = false;
+    }, duration);
+}
+
+/**
+ * 버튼 잠금 상태 확인
+ * @param {string} key - 잠금 키
+ * @returns {boolean} 잠금 상태
+ */
+function isSubmitLocked(key) {
+    return submitLocks[key] === true;
+}
+
 function getTypeIcon(type) {
     const icons = { phone: '📱', tablet: '📱', buds: '🎧' };
     return icons[type] || '📱';
+}
+
+function getTypeName(type) {
+    const names = { phone: '폰', tablet: '태블릿', buds: '버즈' };
+    return names[type] || '기타';
 }
 
 function getStatusInfo(device) {
@@ -1297,13 +1596,50 @@ function getStatusInfo(device) {
         available: { text: '대여 가능' },
         pending: { text: '신청 진행중' },
         rented: { text: '대여중' },
+        overdue: { text: '회수 대상' },
         unavailable: { text: '사용 불가' }
     };
     return statusMap[device.status] || { text: '알 수 없음' };
 }
 
-function updateDeviceCount(count) {
-    elements.deviceCount.textContent = `총 ${count}개 단말`;
+function updateDeviceStats() {
+    // 전체 단말 기준으로 통계 계산 (필터 적용 전)
+    const total = allDevices.length;
+    const available = allDevices.filter(d => d.status === 'available').length;
+    const rented = allDevices.filter(d => d.status === 'rented' || d.status === 'pending').length;
+    const overdue = allDevices.filter(d => d.status === 'overdue').length;
+    const unavailable = allDevices.filter(d => d.status === 'unavailable').length;
+
+    // 숫자 업데이트
+    const statTotal = document.getElementById('statTotal');
+    const statAvailable = document.getElementById('statAvailable');
+    const statRented = document.getElementById('statRented');
+    const statOverdue = document.getElementById('statOverdue');
+    const statUnavailable = document.getElementById('statUnavailable');
+
+    if (statTotal) statTotal.textContent = total;
+    if (statAvailable) statAvailable.textContent = available;
+    if (statRented) statRented.textContent = rented;
+    if (statOverdue) statOverdue.textContent = overdue;
+    if (statUnavailable) statUnavailable.textContent = unavailable;
+
+    // 통계 바 업데이트
+    if (total > 0) {
+        const availablePercent = (available / total) * 100;
+        const rentedPercent = (rented / total) * 100;
+        const overduePercent = (overdue / total) * 100;
+        const unavailablePercent = (unavailable / total) * 100;
+
+        const barAvailable = document.getElementById('statsBarAvailable');
+        const barRented = document.getElementById('statsBarRented');
+        const barOverdue = document.getElementById('statsBarOverdue');
+        const barUnavailable = document.getElementById('statsBarUnavailable');
+
+        if (barAvailable) barAvailable.style.width = `${availablePercent}%`;
+        if (barRented) barRented.style.width = `${rentedPercent}%`;
+        if (barOverdue) barOverdue.style.width = `${overduePercent}%`;
+        if (barUnavailable) barUnavailable.style.width = `${unavailablePercent}%`;
+    }
 }
 
 function updateConnectionStatus(connected) {
