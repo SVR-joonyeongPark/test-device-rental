@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DearU 테스트 단말 대여 시스템</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- JavaScript 비활성화 시 표시 -->
+    <noscript>
+        <div class="noscript-overlay">
+            <div class="noscript-content">
+                <div class="noscript-icon">⚠️</div>
+                <h2>JavaScript가 비활성화되어 있습니다</h2>
+                <p>이 서비스를 이용하려면 JavaScript를 활성화해주세요.</p>
+                <div class="noscript-steps">
+                    <p><strong>Chrome:</strong> 설정 → 개인정보 및 보안 → 사이트 설정 → JavaScript → 허용</p>
+                    <p><strong>개발자 도구:</strong> F12 → 설정(⚙️) → Debugger → Disable JavaScript 체크 해제</p>
+                </div>
+            </div>
+        </div>
+    </noscript>
+
+    <header class="header">
+        <div class="header-content">
+            <div class="header-title">
+                <h1>DearU 테스트 단말 대여 시스템</h1>
+                <p class="header-subtitle">실시간 단말 대여 신청 시스템</p>
+            </div>
+            <div class="header-actions">
+                <div id="periodNotice" class="period-notice">
+                    <span class="period-icon"></span>
+                    <span class="period-text">로딩중...</span>
+                </div>
+                <div class="connection-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">연결중...</span>
+                </div>
+                <button type="button" class="btn-download" id="downloadBtn">
+                    현황 다운로드
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 신청 기간 상태 배너 -->
+    <section id="statusBanner" class="status-banner" style="display: none;">
+        <div class="banner-content">
+            <div class="banner-icon"></div>
+            <div class="banner-text">
+                <h3 class="banner-title"></h3>
+                <p class="banner-message"></p>
+            </div>
+            <div class="banner-actions"></div>
+        </div>
+    </section>
+
+    <main class="main-container">
+        <!-- 필터 영역 -->
+        <section class="filter-section">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="search">모델명 검색</label>
+                    <input type="text" id="search" placeholder="모델명 또는 관리번호 검색...">
+                </div>
+                <div class="filter-group">
+                    <label for="deviceType">단말 타입</label>
+                    <select id="deviceType">
+                        <option value="all">전체</option>
+                        <option value="phone">휴대폰</option>
+                        <option value="tablet">태블릿</option>
+                        <option value="buds">이어폰</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="osType">OS 종류</label>
+                    <select id="osType">
+                        <option value="all">전체</option>
+                        <option value="iOS">iOS</option>
+                        <option value="Android">Android</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="status">상태</label>
+                    <select id="status">
+                        <option value="all">전체</option>
+                        <option value="available">대여 가능</option>
+                        <option value="pending">신청중</option>
+                        <option value="rented">대여중</option>
+                        <option value="unavailable">사용 불가</option>
+                    </select>
+                </div>
+            </div>
+            <div class="filter-stats">
+                <span id="deviceCount">총 0개 단말</span>
+                <button type="button" class="btn-reset" id="resetFilters">필터 초기화</button>
+                <button type="button" class="btn-manual-entry" id="manualEntryBtn">직접 입력으로 신청</button>
+            </div>
+        </section>
+
+        <!-- 로딩 스피너 -->
+        <div class="loading-spinner" id="loadingSpinner">
+            <div class="spinner"></div>
+            <p>데이터를 불러오는 중...</p>
+        </div>
+
+        <!-- 단말 카드 그리드 -->
+        <section class="device-grid" id="deviceGrid">
+            <!-- 단말 카드가 JavaScript로 렌더링됨 -->
+        </section>
+
+        <!-- 빈 상태 -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <p>검색 결과가 없습니다</p>
+            <p class="empty-state-sub">필터 조건을 변경해보세요</p>
+        </div>
+    </main>
+
+    <!-- 대여 신청 모달 -->
+    <div class="modal-overlay" id="rentalModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>단말 대여 신청서</h2>
+                <button type="button" class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <form id="rentalForm" class="modal-body">
+                <!-- 선택된 단말 정보 (목록에서 선택 시) -->
+                <div class="selected-device" id="selectedDeviceInfo">
+                    <!-- 선택된 단말 정보 표시 -->
+                </div>
+
+                <!-- 직접 입력 필드 (직접 입력 모드 시) -->
+                <div class="manual-device-entry" id="manualDeviceEntry" style="display: none;">
+                    <p class="manual-entry-notice">목록에 없는 단말을 직접 입력하여 신청합니다.</p>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="manualDeviceId">관리번호 <span class="required">*</span></label>
+                            <input type="text" id="manualDeviceId" placeholder="예: ES-M170">
+                            <span class="error-message" id="manualDeviceIdError"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="manualModel">모델명 <span class="required">*</span></label>
+                            <input type="text" id="manualModel" placeholder="예: Galaxy S25 Ultra">
+                            <span class="error-message" id="manualModelError"></span>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="manualOs">OS <span class="required">*</span></label>
+                            <select id="manualOs">
+                                <option value="">선택</option>
+                                <option value="iOS">iOS</option>
+                                <option value="Android">Android</option>
+                            </select>
+                            <span class="error-message" id="manualOsError"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="manualOsVersion">OS 버전 <span class="required">*</span></label>
+                            <input type="text" id="manualOsVersion" placeholder="예: 15">
+                            <span class="error-message" id="manualOsVersionError"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="renterName">대여자명 <span class="required">*</span></label>
+                    <input type="text" id="renterName" required minlength="2" placeholder="디어유">
+                    <span class="error-message" id="renterNameError"></span>
+                </div>
+
+                <div class="form-group">
+                    <label>대여 구분 <span class="required">*</span></label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="rentalType" value="QA" required>
+                            <span>QA</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="rentalType" value="분기 대여" required>
+                            <span>분기 대여</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="rentalType" value="단기 대여" required>
+                            <span>단기 대여</span>
+                        </label>
+                    </div>
+                    <span class="error-message" id="rentalTypeError"></span>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="startDate">대여 예정일 <span class="required">*</span></label>
+                        <input type="date" id="startDate" required>
+                        <span class="error-message" id="startDateError"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="endDate">반납 예정일 <span class="required">*</span></label>
+                        <input type="date" id="endDate" required>
+                        <span class="error-message" id="endDateError"></span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="reason">사유 (선택)</label>
+                    <textarea id="reason" rows="3" maxlength="200" placeholder="예: PUSH 개발 테스트"></textarea>
+                    <span class="char-count"><span id="reasonCount">0</span> / 200</span>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">취소</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">신청하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 다운로드 모달 -->
+    <div class="modal-overlay" id="downloadModal">
+        <div class="modal modal-small">
+            <div class="modal-header">
+                <h2>현황 다운로드</h2>
+                <button type="button" class="modal-close" id="downloadModalClose">&times;</button>
+            </div>
+            <div class="modal-body download-options">
+                <p class="download-desc">다운로드 형식을 선택하세요</p>
+                <button type="button" class="btn btn-download-option" id="downloadExcel">
+                    <span class="btn-icon">📊</span>
+                    <span class="btn-text">
+                        <strong>엑셀 파일</strong>
+                        <small>.xlsx 형식</small>
+                    </span>
+                </button>
+                <button type="button" class="btn btn-download-option" id="downloadConfluence">
+                    <span class="btn-icon">📝</span>
+                    <span class="btn-text">
+                        <strong>Confluence 테이블</strong>
+                        <small>Wiki Markup 형식</small>
+                    </span>
+                </button>
+                <hr class="download-divider">
+                <p class="download-desc">신청서 양식</p>
+                <button type="button" class="btn btn-download-option" id="downloadTemplate">
+                    <span class="btn-icon">📋</span>
+                    <span class="btn-text">
+                        <strong>단말 대여 요청서</strong>
+                        <small id="templateFileName">양식 파일 다운로드</small>
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 연장 신청 모달 -->
+    <div class="modal-overlay" id="extendModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>대여 연장 신청</h2>
+                <button type="button" class="modal-close" id="extendModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="extend-period-info">
+                    <p>다음 분기 대여 기간: <strong id="extendPeriodText"></strong></p>
+                </div>
+                <!-- 대여자명 검색 영역 (항상 표시) -->
+                <div class="extend-search-section">
+                    <div class="form-group">
+                        <label for="extendRenterName">대여자명 <span class="required">*</span></label>
+                        <div class="search-input-group">
+                            <input type="text" id="extendRenterName" required placeholder="디어유">
+                            <button type="button" class="btn btn-primary" id="searchRentalsBtn">검색</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- 검색 결과 영역 -->
+                <div class="current-rentals" id="currentRentals">
+                    <!-- 현재 대여 중인 단말 목록 -->
+                </div>
+                <div class="extend-form" id="extendForm" style="display: none;">
+                    <div class="selected-extend-devices" id="selectedExtendDevices">
+                        <p>선택된 단말: <span id="extendDeviceCount">0</span>개</p>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="extendCancelBtn">취소</button>
+                        <button type="button" class="btn btn-primary" id="extendSubmitBtn">연장 신청</button>
+                    </div>
+                </div>
+                <div class="no-rentals" id="noRentals" style="display: none;">
+                    <p>현재 대여 중인 단말이 없습니다.</p>
+                    <p class="sub">신규 대여를 원하시면 대여 가능한 단말에서 신청해주세요.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 토스트 메시지 -->
+    <div class="toast" id="toast"></div>
+
+    <!-- 개발용 디버그 패널 (Ctrl+Shift+D로 토글) -->
+    <div id="debugPanel" class="debug-panel" style="display: none;">
+        <div class="debug-header">
+            <h4>디버그 정보</h4>
+            <button type="button" onclick="document.getElementById('debugPanel').style.display='none'">&times;</button>
+        </div>
+        <div id="debugInfo"></div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2026 DearU. 테스트 단말 대여 시스템 v1.0</p>
+    </footer>
+
+    <!-- Firebase & Scripts (ES Module) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script type="module" src="js/firebase-config.js"></script>
+    <script type="module" src="js/rental-period.js"></script>
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
